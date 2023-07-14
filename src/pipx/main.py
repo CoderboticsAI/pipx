@@ -200,7 +200,142 @@ def get_venv_args(parsed_args: Dict[str, Any]) -> List[str]:
     return venv_args
 
 
-def run_pipx_command(args: argparse.Namespace) -> ExitCode:  # noqa: C901
+def run_command(
+    command: str, venv_dir: Optional[str], pip_args: List[str], verbose: bool, **kwargs
+) -> ExitCode:
+    """
+    Execute the specified command with the given arguments.
+
+    Args:
+        command: The command to execute.
+        venv_dir: The virtual environment directory.
+        pip_args: The pip arguments.
+        verbose: Whether to output verbose information.
+        **kwargs: Additional command-specific arguments.
+
+    Returns:
+        ExitCode: The exit code indicating success or failure of the command.
+    """
+    if command == "run":
+        commands.run(
+            kwargs["app_with_args"][0],
+            kwargs["spec"],
+            kwargs["path"],
+            kwargs["app_with_args"][1:],
+            kwargs["python"],
+            pip_args,
+            kwargs["venv_args"],
+            kwargs["pypackages"],
+            verbose,
+            not kwargs["no_cache"],
+        )
+        return ExitCode(1)
+    elif command == "install":
+        return commands.install(
+            None,
+            None,
+            kwargs["package_spec"],
+            constants.LOCAL_BIN_DIR,
+            kwargs["python"],
+            pip_args,
+            kwargs["venv_args"],
+            verbose,
+            force=kwargs["force"],
+            include_dependencies=kwargs["include_deps"],
+            suffix=kwargs["suffix"],
+        )
+    elif command == "inject":
+        return commands.inject(
+            venv_dir,
+            None,
+            kwargs["dependencies"],
+            pip_args,
+            verbose=verbose,
+            include_apps=kwargs["include_apps"],
+            include_dependencies=kwargs["include_deps"],
+            force=kwargs["force"],
+        )
+    elif command == "uninject":
+        return commands.uninject(
+            venv_dir,
+            kwargs["dependencies"],
+            local_bin_dir=constants.LOCAL_BIN_DIR,
+            leave_deps=kwargs["leave_deps"],
+            verbose=verbose,
+        )
+    elif command == "upgrade":
+        return commands.upgrade(
+            venv_dir,
+            pip_args,
+            verbose,
+            include_injected=kwargs["include_injected"],
+            force=kwargs["force"],
+        )
+    elif command == "upgrade-all":
+        return commands.upgrade_all(
+            kwargs["venv_container"],
+            verbose,
+            include_injected=kwargs["include_injected"],
+            skip=kwargs["skip_list"],
+            force=kwargs["force"],
+        )
+    elif command == "list":
+        return commands.list_packages(
+            kwargs["venv_container"],
+            kwargs["include_injected"],
+            kwargs["json"],
+            kwargs["short"],
+        )
+    elif command == "uninstall":
+        return commands.uninstall(venv_dir, constants.LOCAL_BIN_DIR, verbose)
+    elif command == "uninstall-all":
+        return commands.uninstall_all(venv_container, constants.LOCAL_BIN_DIR, verbose)
+    elif command == "reinstall":
+        return commands.reinstall(
+            venv_dir=venv_dir,
+            local_bin_dir=constants.LOCAL_BIN_DIR,
+            python=kwargs["python"],
+            verbose=verbose,
+        )
+    elif command == "reinstall-all":
+        return commands.reinstall_all(
+            kwargs["venv_container"],
+            constants.LOCAL_BIN_DIR,
+            kwargs["python"],
+            verbose,
+            skip=kwargs["skip_list"],
+        )
+    elif command == "runpip":
+        if not venv_dir:
+            raise PipxError("Developer error: venv_dir is not defined.")
+        return commands.run_pip(
+            kwargs["package"], venv_dir, kwargs["pipargs"], kwargs["verbose"]
+        )
+    elif command == "ensurepath":
+        try:
+            return commands.ensure_pipx_paths(force=kwargs["force"])
+        except Exception as e:
+            logger.debug("Uncaught Exception:", exc_info=True)
+            raise PipxError(str(e), wrap_message=False)
+    elif command == "completions":
+        print(constants.completion_instructions)
+        return ExitCode(0)
+    elif command == "environment":
+        return commands.environment(value=kwargs["value"])
+    else:
+        raise PipxError(f"Unknown command {command}")
+
+
+def run_pipx_command(args: argparse.Namespace) -> ExitCode:
+    """
+    Execute the appropriate command based on the given command line arguments.
+
+    Args:
+        args: The parsed command line arguments.
+
+    Returns:
+        ExitCode: The exit code indicating success or failure of the command.
+    """
     verbose = args.verbose if "verbose" in args else False
     pip_args = get_pip_args(vars(args))
     venv_args = get_venv_args(vars(args))
@@ -219,117 +354,24 @@ def run_pipx_command(args: argparse.Namespace) -> ExitCode:  # noqa: C901
 
         venv_dir = venv_container.get_venv_dir(package)
         logger.info(f"Virtual Environment location is {venv_dir}")
+
     if "skip" in args:
         skip_list = [canonicalize_name(x) for x in args.skip]
+
     if "python" in args and not Path(args.python).is_file():
         py_launcher_python = find_py_launcher_python(args.python)
         if py_launcher_python:
             args.python = py_launcher_python
 
-    if args.command == "run":
-        commands.run(
-            args.app_with_args[0],
-            args.spec,
-            args.path,
-            args.app_with_args[1:],
-            args.python,
-            pip_args,
-            venv_args,
-            args.pypackages,
-            verbose,
-            not args.no_cache,
-        )
-        # We should never reach here because run() is NoReturn.
-        return ExitCode(1)
-    elif args.command == "install":
-        return commands.install(
-            None,
-            None,
-            args.package_spec,
-            constants.LOCAL_BIN_DIR,
-            args.python,
-            pip_args,
-            venv_args,
-            verbose,
-            force=args.force,
-            include_dependencies=args.include_deps,
-            suffix=args.suffix,
-        )
-    elif args.command == "inject":
-        return commands.inject(
-            venv_dir,
-            None,
-            args.dependencies,
-            pip_args,
-            verbose=verbose,
-            include_apps=args.include_apps,
-            include_dependencies=args.include_deps,
-            force=args.force,
-        )
-    elif args.command == "uninject":
-        return commands.uninject(
-            venv_dir,
-            args.dependencies,
-            local_bin_dir=constants.LOCAL_BIN_DIR,
-            leave_deps=args.leave_deps,
-            verbose=verbose,
-        )
-    elif args.command == "upgrade":
-        return commands.upgrade(
-            venv_dir,
-            pip_args,
-            verbose,
-            include_injected=args.include_injected,
-            force=args.force,
-        )
-    elif args.command == "upgrade-all":
-        return commands.upgrade_all(
-            venv_container,
-            verbose,
-            include_injected=args.include_injected,
-            skip=skip_list,
-            force=args.force,
-        )
-    elif args.command == "list":
-        return commands.list_packages(
-            venv_container, args.include_injected, args.json, args.short
-        )
-    elif args.command == "uninstall":
-        return commands.uninstall(venv_dir, constants.LOCAL_BIN_DIR, verbose)
-    elif args.command == "uninstall-all":
-        return commands.uninstall_all(venv_container, constants.LOCAL_BIN_DIR, verbose)
-    elif args.command == "reinstall":
-        return commands.reinstall(
-            venv_dir=venv_dir,
-            local_bin_dir=constants.LOCAL_BIN_DIR,
-            python=args.python,
-            verbose=verbose,
-        )
-    elif args.command == "reinstall-all":
-        return commands.reinstall_all(
-            venv_container,
-            constants.LOCAL_BIN_DIR,
-            args.python,
-            verbose,
-            skip=skip_list,
-        )
-    elif args.command == "runpip":
-        if not venv_dir:
-            raise PipxError("Developer error: venv_dir is not defined.")
-        return commands.run_pip(package, venv_dir, args.pipargs, args.verbose)
-    elif args.command == "ensurepath":
-        try:
-            return commands.ensure_pipx_paths(force=args.force)
-        except Exception as e:
-            logger.debug("Uncaught Exception:", exc_info=True)
-            raise PipxError(str(e), wrap_message=False)
-    elif args.command == "completions":
-        print(constants.completion_instructions)
-        return ExitCode(0)
-    elif args.command == "environment":
-        return commands.environment(value=args.value)
-    else:
-        raise PipxError(f"Unknown command {args.command}")
+    return run_command(
+        args.command,
+        venv_dir,
+        pip_args,
+        verbose,
+        venv_container=venv_container,
+        skip_list=skip_list,
+        **vars(args),
+    )
 
 
 def add_pip_venv_args(parser: argparse.ArgumentParser) -> None:
