@@ -61,6 +61,107 @@ def parse_package_list(package_list_file: Path) -> List[Dict[str, Any]]:
     return output_list
 
 
+def create_test_packages_list(
+    package_list_dir_path: Path, primary_package_list_path: Path, verbose: bool
+) -> int:
+    """Create a list of test packages.
+
+    Args:
+        package_list_dir_path (Path): The path to the directory where the package list will be saved.
+        primary_package_list_path (Path): The path to the primary package list file.
+        verbose (bool): Whether to print verbose output or not.
+
+    Returns:
+        int: The exit code.
+
+    Raises:
+        ValueError: If there is a problem reading the primary package list.
+
+    Examples:
+        >>> package_list_dir_path = Path("package_list")
+        >>> primary_package_list_path = Path("primary_package_list.txt")
+        >>> verbose = True
+        >>> create_test_packages_list(package_list_dir_path, primary_package_list_path, verbose)
+        Examined package1
+        Examined package2 (no-deps)
+    """
+    exit_code = 0
+
+    def get_verbose_string(verbose: bool, verbose_this_iteration: bool) -> str:
+        if verbose or verbose_this_iteration:
+            return f"\n{pip_download_process.stdout.strip()}\n{pip_download_process.stderr.strip()}"
+        return ""
+
+    def parse_test_package(spec: str, no_deps: bool) -> Tuple[List[str], bool]:
+        verbose_this_iteration = False
+        cmd_list = [
+            "pip",
+            "download",
+            *(["--no-deps"] if no_deps else []),
+            spec,
+            "-d",
+            str(download_dir),
+        ]
+        if verbose:
+            print(f"CMD: {' '.join(cmd_list)}")
+        pip_download_process = subprocess.run(
+            cmd_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+        )
+        if pip_download_process.returncode == 0:
+            print(f"Examined {spec}{' (no-deps)' if no_deps else ''}")
+        else:
+            print(
+                f"ERROR with {spec}{' (no-deps)' if no_deps else ''}",
+                file=sys.stderr,
+            )
+            verbose_this_iteration = True
+            exit_code = 1
+        return get_verbose_string(verbose, verbose_this_iteration), exit_code
+
+    package_list_dir_path.mkdir(exist_ok=True)
+    platform_package_list_path = get_platform_list_path(package_list_dir_path)
+
+    primary_test_packages = parse_package_list(primary_package_list_path)
+    if not primary_test_packages:
+        raise ValueError(f"Problem reading {primary_package_list_path}.")
+
+    with tempfile.TemporaryDirectory() as download_dir:
+        for test_package in primary_test_packages:
+            verbose_string, exit_code = parse_test_package(
+                test_package["spec"], test_package.get("no-deps", False)
+            )
+            print(verbose_string)
+
+    downloaded_list = os.listdir(download_dir)
+
+    all_packages = []
+    for downloaded_filename in downloaded_list:
+        wheel_re = re.search(
+            r"(.+)\-([^-]+)\-([^-]+)\-([^-]+)\-([^-]+)\.whl$", downloaded_filename
+        )
+        src_re = re.search(r"(.+)\-([^-]+)\.(?:tar.gz|zip)$", downloaded_filename)
+        if wheel_re:
+            package_name = wheel_re.group(1)
+            package_version = wheel_re.group(2)
+        elif src_re:
+            package_name = src_re.group(1)
+            package_version = src_re.group(2)
+        else:
+            print(f"ERROR: cannot parse: {downloaded_filename}", file=sys.stderr)
+            continue
+
+        all_packages.append(f"{package_name}=={package_version}")
+
+    with platform_package_list_path.open("w") as package_list_fh:
+        for package in sorted(all_packages):
+            print(package, file=package_list_fh)
+
+    return exit_code
+
+
 def process_command_line(argv: List[str]) -> argparse.Namespace:
     """
     Process command line invocation arguments and switches.
@@ -89,80 +190,6 @@ def process_command_line(argv: List[str]) -> argparse.Namespace:
         help="Maximize verbosity, especially for pip operations.",
     )
     return parser.parse_args(argv[1:])
-
-
-def create_test_packages_list(
-    package_list_dir_path: Path, primary_package_list_path: Path, verbose: bool
-) -> int:
-    exit_code = 0
-    package_list_dir_path.mkdir(exist_ok=True)
-    platform_package_list_path = get_platform_list_path(package_list_dir_path)
-
-    primary_test_packages = parse_package_list(primary_package_list_path)
-    if not primary_test_packages:
-        print(
-            f"ERROR: Problem reading {primary_package_list_path}.  Exiting.",
-            file=sys.stderr,
-        )
-        return 1
-
-    with tempfile.TemporaryDirectory() as download_dir:
-        for test_package in primary_test_packages:
-            test_package_option_string = (
-                " (no-deps)" if test_package.get("no-deps", False) else ""
-            )
-            verbose_this_iteration = False
-            cmd_list = (
-                ["pip", "download"]
-                + (["--no-deps"] if test_package.get("no-deps", False) else [])
-                + [test_package["spec"], "-d", str(download_dir)]
-            )
-            if verbose:
-                print(f"CMD: {' '.join(cmd_list)}")
-            pip_download_process = subprocess.run(
-                cmd_list,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-            )
-            if pip_download_process.returncode == 0:
-                print(f"Examined {test_package['spec']}{test_package_option_string}")
-            else:
-                print(
-                    f"ERROR with {test_package['spec']}{test_package_option_string}",
-                    file=sys.stderr,
-                )
-                verbose_this_iteration = True
-                exit_code = 1
-            if verbose or verbose_this_iteration:
-                print(pip_download_process.stdout)
-                print(pip_download_process.stderr)
-        downloaded_list = os.listdir(download_dir)
-
-    all_packages = []
-    for downloaded_filename in downloaded_list:
-        wheel_re = re.search(
-            r"(.+)\-([^-]+)\-([^-]+)\-([^-]+)\-([^-]+)\.whl$", downloaded_filename
-        )
-        src_re = re.search(r"(.+)\-([^-]+)\.(?:tar.gz|zip)$", downloaded_filename)
-        if wheel_re:
-            package_name = wheel_re.group(1)
-            package_version = wheel_re.group(2)
-        elif src_re:
-            package_name = src_re.group(1)
-            package_version = src_re.group(2)
-        else:
-            print(f"ERROR: cannot parse: {downloaded_filename}", file=sys.stderr)
-            continue
-
-        all_packages.append(f"{package_name}=={package_version}")
-
-    with platform_package_list_path.open("w") as package_list_fh:
-        "scripts/list_test_packages.py",
-        for package in sorted(all_packages):
-            print(package, file=package_list_fh)
-
-    return exit_code
 
 
 def main(argv: List[str]) -> int:
