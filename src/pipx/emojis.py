@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Union
 
 
 def strtobool(val: str) -> bool:
@@ -33,14 +34,56 @@ def strtobool(val: str) -> bool:
 
 
 def use_emojis() -> bool:
-    # All emojis that pipx might possibly use
+    """
+    Determine if emojis should be used based on the platform and environment variable.
+
+    Returns:
+        A boolean value indicating whether emojis should be used or not.
+
+    Examples:
+        >>> os.environ["USE_EMOJI"] = "true"
+        >>> use_emojis()
+        True
+        >>> os.environ["USE_EMOJI"] = "false"
+        >>> use_emojis()
+        False
+        >>> os.environ["USE_EMOJI"] = ""  # no value set
+        >>> sys.stderr.encoding = "ascii"
+        >>> use_emojis()
+        False
+    """
+    emoji_test_str = "✨🌟⚠️😴⣷⣯⣟⡿⢿⣻⣽⣾"
+    platform_emoji_support = check_platform_emoji_support()
+    env_emoji_support = strtobool(os.getenv("USE_EMOJI", str(platform_emoji_support)))
+    return env_emoji_support
+
+
+def check_platform_emoji_support() -> bool:
+    """
+    Check if the platform supports emojis.
+
+    Returns:
+        A boolean value indicating if the platform supports emojis.
+
+    Raises:
+        UnicodeEncodeError: If the platform does not support emojis.
+
+    Examples:
+        >>> sys.stderr.encoding = "utf-8"
+        >>> check_platform_emoji_support()
+        True
+        >>> sys.stderr.encoding = "ascii"
+        >>> check_platform_emoji_support()
+        Traceback (most recent call last):
+            ...
+        UnicodeEncodeError: 'ascii' codec can't encode ...
+    """
     emoji_test_str = "✨🌟⚠️😴⣷⣯⣟⡿⢿⣻⣽⣾"
     try:
         emoji_test_str.encode(sys.stderr.encoding)
-        platform_emoji_support = True
+        return True
     except UnicodeEncodeError:
-        platform_emoji_support = False
-    return strtobool(str(os.getenv("USE_EMOJI", platform_emoji_support)))
+        raise
 
 
 EMOJI_SUPPORT = use_emojis()
