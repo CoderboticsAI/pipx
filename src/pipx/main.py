@@ -37,18 +37,24 @@ VenvCompleter = Callable[[str], List[str]]
 
 def print_version() -> None:
     print(__version__)
-
-
 def prog_name() -> str:
-    try:
-        prog = os.path.basename(sys.argv[0])
-        if prog == "__main__.py":
-            return f"{sys.executable} -m pipx"
-        else:
-            return prog
-    except Exception:
-        pass
-    return "pipx"
+    """
+    Returns the program name.
+
+    Returns:
+        str: The program name.
+
+    Raises:
+        None
+
+    Examples:
+        >>> prog_name()
+        'pipx'
+    """
+    prog = os.path.basename(sys.argv[0])
+    if prog == "__main__.py":
+        return f"{sys.executable} -m pipx"
+    return prog
 
 
 SPEC_HELP = textwrap.dedent(
