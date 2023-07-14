@@ -11,6 +11,8 @@ from pipx.constants import EXIT_CODE_OK, EXIT_CODE_UNINJECT_ERROR, ExitCode
 from pipx.emojis import stars
 from pipx.util import PipxError, pipx_wrap
 from pipx.venv import Venv
+from typing import List
+from pipx.constants import ExitCode
 
 logger = logging.getLogger(__name__)
 
@@ -128,17 +130,60 @@ def uninject_dep(
     return True
 
 
+def find_deps_of_uninstalled(package_name: str, venv: Venv) -> List[str]:
+    """Finds the dependencies of an uninstalled package.
+
+    Args:
+        package_name: The name of the package.
+        venv: The virtual environment instance.
+
+    Returns:
+        List[str]: A list of dependency package names.
+    """
+    orig_not_required_packages = venv.list_installed_packages(not_required=True)
+    venv.uninstall_package(package=package_name, was_injected=True)
+    new_not_required_packages = venv.list_installed_packages(not_required=True)
+
+    return list(new_not_required_packages - orig_not_required_packages)
+
+
+def remove_app_paths(app_paths: List[Path]) -> None:
+    """Removes the app paths.
+
+    Args:
+        app_paths: A list of app paths.
+    """
+    for app_path in app_paths:
+        try:
+            os.unlink(app_path)
+            logger.info(f"removed file {app_path}")
+        except FileNotFoundError:
+            logger.info(f"tried to remove but couldn't find {app_path}")
+
+
 def uninject(
     venv_dir: Path,
     dependencies: List[str],
-    *,
     local_bin_dir: Path,
     leave_deps: bool,
     verbose: bool,
 ) -> ExitCode:
-    """Returns pipx exit code"""
+    """Uninjects the given packages from the virtual environment.
 
-    if not venv_dir.exists() or not next(venv_dir.iterdir()):
+    Args:
+        venv_dir: The directory of the virtual environment.
+        dependencies: A list of package names to uninject.
+        local_bin_dir: The local bin directory.
+        leave_deps: Whether to leave the dependencies of the uninstalled packages.
+        verbose: Whether to enable verbose output.
+
+    Returns:
+        ExitCode: The exit code.
+
+    Raises:
+        PipxError: If the virtual environment does not exist or has missing internal pipx metadata.
+    """
+    if not venv_dir.exists() or not any(venv_dir.iterdir()):
         raise PipxError(f"Virtual environment {venv_dir.name} does not exist.")
 
     venv = Venv(venv_dir, verbose=verbose)
@@ -159,7 +204,4 @@ def uninject(
             venv, dep, local_bin_dir=local_bin_dir, leave_deps=leave_deps
         )
 
-    if all_success:
-        return EXIT_CODE_OK
-    else:
-        return EXIT_CODE_UNINJECT_ERROR
+    return EXIT_CODE_OK if all_success else EXIT_CODE_UNINJECT_ERROR
