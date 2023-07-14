@@ -370,6 +370,28 @@ def _add_upgrade_all(subparsers: argparse._SubParsersAction) -> None:
         help="Modify existing virtual environment and files in PIPX_BIN_DIR",
     )
     p.add_argument("--verbose", action="store_true")
+
+
+def _add_uninstall(
+    subparsers: argparse._SubParsersAction, venv_completer: Callable[[str], List[str]]
+) -> None:
+    """
+    Add the 'uninstall' subcommand to the command-line interface.
+
+    Args:
+        subparsers: A subparsers object from the main argument parser.
+        venv_completer: A completer function for virtual environment names.
+
+    Returns:
+        None
+    """
+    p = subparsers.add_parser(
+        "uninstall",
+        help="Uninstall a package",
+        description="Uninstalls a pipx-managed Virtual Environment by deleting it and any files that point to its apps.",
+    )
+    p.add_argument("package").completer = venv_completer
+    p.add_argument("--verbose", action="store_true")
 def add_pip_venv_args(parser: argparse.ArgumentParser) -> None:
     """
     Add arguments related to creating virtual environments using pip to the parser.
@@ -781,16 +803,6 @@ def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--include-deps", help="Include apps of dependent packages", action="store_true"
     )
-
-
-def _add_uninstall(subparsers, venv_completer: VenvCompleter) -> None:
-    p = subparsers.add_parser(
-        "uninstall",
-        help="Uninstall a package",
-        description="Uninstalls a pipx-managed Virtual Environment by deleting it and any files that point to its apps.",
-    )
-    p.add_argument("package").completer = venv_completer
-    p.add_argument("--verbose", action="store_true")
 
 
 def _add_uninstall_all(subparsers: argparse._SubParsersAction) -> None:
