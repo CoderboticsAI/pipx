@@ -11,44 +11,53 @@ from pipx.constants import EXIT_CODE_OK, ExitCode
 from pipx.emojis import hazard, stars
 from pipx.util import pipx_wrap
 
+import userpath
+
 logger = logging.getLogger(__name__)
 
 
+def is_pip_user_installed(script_path: Path, userbase_path: Path) -> bool:
+    """Check if pipx is installed using `pip --user`."""
+    try:
+        relative_path = script_path.relative_to(userbase_path)
+        return True
+    except ValueError:
+        return False
+
+
 def get_pipx_user_bin_path() -> Optional[Path]:
-    """Returns None if pipx is not installed using `pip --user`
-    Otherwise returns parent dir of pipx binary
     """
-    # NOTE: using this method to detect pip user-installed pipx will return
-    #   None if pipx was installed as editable using `pip install --user -e`
+    Returns the parent directory of the pipx binary if pipx is installed using `pip --user`.
 
-    # https://docs.python.org/3/install/index.html#inst-alt-install-user
-    #   Linux + Mac:
-    #       scripts in <userbase>/bin
-    #   Windows:
-    #       scripts in <userbase>/Python<XY>/Scripts
-    #       modules in <userbase>/Python<XY>/site-packages
+    Returns:
+        Optional[Path]: The parent directory path of the pipx binary, or None if pipx is not installed using `pip --user`.
 
-    pipx_bin_path = None
+    Raises:
+        None
+
+    Examples:
+        >>> get_pipx_user_bin_path()
+        Path('/path/to/pipx')
+
+        >>> get_pipx_user_bin_path()
+        None
+    """
+    user_bin_path = None
 
     script_path = Path(__file__).resolve()
     userbase_path = Path(site.getuserbase()).resolve()
-    try:
-        _ = script_path.relative_to(userbase_path)
-    except ValueError:
-        pip_user_installed = False
-    else:
-        pip_user_installed = True
-    if pip_user_installed:
+
+    if is_pip_user_installed(script_path, userbase_path):
         test_paths = (
             userbase_path / "bin" / "pipx",
             Path(site.getusersitepackages()).resolve().parent / "Scripts" / "pipx.exe",
         )
         for test_path in test_paths:
             if test_path.exists():
-                pipx_bin_path = test_path.parent
+                user_bin_path = test_path.parent
                 break
 
-    return pipx_bin_path
+    return user_bin_path
 
 
 def ensure_path(location: Path, *, force: bool) -> Tuple[bool, bool]:
