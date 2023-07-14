@@ -324,6 +324,46 @@ def run_command(
         return commands.environment(value=kwargs["value"])
     else:
         raise PipxError(f"Unknown command {command}")
+def add_pip_venv_args(parser: argparse.ArgumentParser) -> None:
+    """
+    Add arguments related to creating virtual environments using pip to the parser.
+
+    Args:
+        parser: An instance of `argparse.ArgumentParser` to add the arguments to.
+    """
+
+    def _add_system_site_packages_arg() -> None:
+        parser.add_argument(
+            "--system-site-packages",
+            action="store_true",
+            help="Give the virtual environment access to the system site-packages dir.",
+        )
+
+    def _add_index_url_arg() -> None:
+        parser.add_argument(
+            "--index-url",
+            "-i",
+            help="Specify the base URL of the Python Package Index",
+        )
+
+    def _add_editable_arg() -> None:
+        parser.add_argument(
+            "--editable",
+            "-e",
+            action="store_true",
+            help="Install a project in editable mode",
+        )
+
+    def _add_pip_args_arg() -> None:
+        parser.add_argument(
+            "--pip-args",
+            help="Arbitrary pip arguments to pass directly to pip install/upgrade commands",
+        )
+
+    _add_system_site_packages_arg()
+    _add_index_url_arg()
+    _add_editable_arg()
+    _add_pip_args_arg()
 
 
 def run_pipx_command(args: argparse.Namespace) -> ExitCode:
@@ -371,25 +411,6 @@ def run_pipx_command(args: argparse.Namespace) -> ExitCode:
         venv_container=venv_container,
         skip_list=skip_list,
         **vars(args),
-    )
-
-
-def add_pip_venv_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--system-site-packages",
-        action="store_true",
-        help="Give the virtual environment access to the system site-packages dir.",
-    )
-    parser.add_argument("--index-url", "-i", help="Base URL of Python Package Index")
-    parser.add_argument(
-        "--editable",
-        "-e",
-        help="Install a project in editable mode",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--pip-args",
-        help="Arbitrary pip arguments to pass directly to pip install/upgrade commands",
     )
 
 
