@@ -12,6 +12,7 @@ from pipx.emojis import hazard, stars
 from pipx.util import pipx_wrap
 
 import userpath
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,62 @@ def is_pip_user_installed(script_path: Path, userbase_path: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def ensure_path(location: Path, *, force: bool) -> Tuple[bool, bool]:
+    """
+    Ensure that the provided location is in the user's PATH or add it to PATH.
+
+    Args:
+        location (Path): The location to be added to the PATH.
+        force (bool): If True, the location will be added to PATH even if it is already present.
+
+    Returns:
+        Tuple[bool, bool]: A tuple indicating whether the location was added to the PATH and whether a shell restart is required.
+    """
+    location_str = str(location)
+    path_added = False
+    need_shell_restart = userpath.need_shell_restart(location_str)
+    in_current_path = userpath.in_current_path(location_str)
+
+    if force or (not in_current_path and not need_shell_restart):
+        path_added, need_shell_restart = _add_location_to_path(location_str)
+    elif not in_current_path and need_shell_restart:
+        _print_shell_restart_message(location_str)
+    else:
+        _print_already_in_path_message(location_str)
+
+    return path_added, need_shell_restart
+
+
+def _add_location_to_path(location_str: str) -> Tuple[bool, bool]:
+    userpath.append(location_str, "pipx")
+    print(
+        pipx_wrap(
+            f"Success! Added {location_str} to the PATH environment variable.",
+            subsequent_indent=" " * 4,
+        )
+    )
+    path_added = True
+    need_shell_restart = userpath.need_shell_restart(location_str)
+    return path_added, need_shell_restart
+
+
+def _print_shell_restart_message(location_str: str) -> None:
+    print(
+        pipx_wrap(
+            f"""
+            {location_str} has been been added to PATH, but you need to
+            open a new terminal or re-login for this PATH change to take
+            effect.
+            """,
+            subsequent_indent=" " * 4,
+        )
+    )
+
+
+def _print_already_in_path_message(location_str: str) -> None:
+    print(pipx_wrap(f"{location_str} is already in PATH.", subsequent_indent=" " * 4))
 
 
 def get_pipx_user_bin_path() -> Optional[Path]:
@@ -58,44 +115,6 @@ def get_pipx_user_bin_path() -> Optional[Path]:
                 break
 
     return user_bin_path
-
-
-def ensure_path(location: Path, *, force: bool) -> Tuple[bool, bool]:
-    """Ensure location is in user's PATH or add it to PATH.
-    Returns True if location was added to PATH
-    """
-    location_str = str(location)
-    path_added = False
-    need_shell_restart = userpath.need_shell_restart(location_str)
-    in_current_path = userpath.in_current_path(location_str)
-
-    if force or (not in_current_path and not need_shell_restart):
-        userpath.append(location_str, "pipx")
-        print(
-            pipx_wrap(
-                f"Success! Added {location_str} to the PATH environment variable.",
-                subsequent_indent=" " * 4,
-            )
-        )
-        path_added = True
-        need_shell_restart = userpath.need_shell_restart(location_str)
-    elif not in_current_path and need_shell_restart:
-        print(
-            pipx_wrap(
-                f"""
-                {location_str} has been been added to PATH, but you need to
-                open a new terminal or re-login for this PATH change to take
-                effect.
-                """,
-                subsequent_indent=" " * 4,
-            )
-        )
-    else:
-        print(
-            pipx_wrap(f"{location_str} is already in PATH.", subsequent_indent=" " * 4)
-        )
-
-    return (path_added, need_shell_restart)
 
 
 def ensure_pipx_paths(force: bool) -> ExitCode:
