@@ -3,10 +3,30 @@ import sys
 
 
 def strtobool(val: str) -> bool:
+    """
+    Convert a string representation of a boolean value to a boolean.
+
+    Args:
+        val: A string representing a boolean value.
+
+    Returns:
+        The corresponding boolean value.
+
+    Examples:
+        >>> strtobool('yes')
+        True
+        >>> strtobool('f')
+        False
+        >>> strtobool('invalid')
+        False
+    """
+    true_values = ["y", "yes", "t", "true", "on", "1"]
+    false_values = ["n", "no", "f", "false", "off", "0"]
+
     val = val.lower()
-    if val in ("y", "yes", "t", "true", "on", "1"):
+    if val in true_values:
         return True
-    elif val in ("n", "no", "f", "false", "off", "0"):
+    elif val in false_values:
         return False
     else:
         return False
