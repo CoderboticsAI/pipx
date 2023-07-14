@@ -51,6 +51,27 @@ def get_include_app_paths(
 def uninject_dep(
     venv: Venv, package_name: str, *, local_bin_dir: Path, leave_deps: bool = False
 ) -> bool:
+    """
+    Uninjects a package from the virtual environment and removes associated app paths.
+
+    Args:
+        venv: The virtual environment instance.
+        package_name: The name of the package to uninject.
+        local_bin_dir: The local bin directory.
+        leave_deps: Whether to leave the dependencies of the uninstalled package.
+
+    Returns:
+        True if the package was successfully uninjected, False otherwise.
+
+    Raises:
+        None.
+
+    Examples:
+        >>> venv = Venv(path=Path('/path/to/venv'))
+        >>> local_bin_dir = Path('/path/to/local/bin')
+        >>> uninject_dep(venv, 'package-name', local_bin_dir=local_bin_dir)
+        True
+    """
     package_name = canonicalize_name(package_name)
 
     if package_name == venv.pipx_metadata.main_package.package:
@@ -84,13 +105,10 @@ def uninject_dep(
         logger.info(f"New not required packages: {new_not_required_packages}")
 
         deps_of_uninstalled = new_not_required_packages - orig_not_required_packages
-        if len(deps_of_uninstalled) == 0:
-            pass
-        else:
+        if len(deps_of_uninstalled) != 0:
             logger.info(f"Dependencies of uninstalled package: {deps_of_uninstalled}")
-
-        for dep_package_name in deps_of_uninstalled:
-            venv.uninstall_package(package=dep_package_name, was_injected=False)
+            for dep_package_name in deps_of_uninstalled:
+                venv.uninstall_package(package=dep_package_name, was_injected=False)
 
         deps_string = " and its dependencies"
     else:
@@ -100,10 +118,9 @@ def uninject_dep(
         for app_path in new_app_paths:
             try:
                 os.unlink(app_path)
+                logger.info(f"removed file {app_path}")
             except FileNotFoundError:
                 logger.info(f"tried to remove but couldn't find {app_path}")
-            else:
-                logger.info(f"removed file {app_path}")
 
     print(
         f"Uninjected package {bold(package_name)}{deps_string} from venv {bold(venv.root.name)} {stars}"
