@@ -13,6 +13,54 @@ import argparse
 from typing import List
 
 
+def parse_package_list(package_list_file: Path) -> List[Dict[str, Any]]:
+    """
+    Parse the primary package list file and return a list of dictionaries.
+
+    Each dictionary represents a package specification and may include the 'spec' key and the 'no-deps' key.
+
+    Args:
+        package_list_file (Path): The path to the primary package list file to be parsed.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries representing each package specification.
+
+    Examples:
+        >>> package_list_file = Path("package_list.txt")
+        >>> parse_package_list(package_list_file)
+        [{'spec': 'package1'}, {'spec': 'package2', 'no-deps': False}]
+    """
+    output_list: List[Dict[str, Any]] = []
+
+    def parse_line(line: str) -> Dict[str, Any]:
+        line_parsed = re.sub(r"#.+$", "", line)
+        if not re.search(r"\S", line_parsed):
+            raise ValueError("No valid content found in line")
+        line_list = line_parsed.strip().split()
+        if len(line_list) == 1:
+            return {"spec": line_list[0]}
+        if len(line_list) == 2:
+            return {
+                "spec": line_list[0],
+                "no-deps": line_list[1].lower() == "true",
+            }
+        raise ValueError("Invalid number of fields in line")
+
+    try:
+        with package_list_file.open("r") as package_list_fh:
+            for line in package_list_fh:
+                try:
+                    output_list.append(parse_line(line))
+                except ValueError as e:
+                    print(f"ERROR: {e}\n    {line.strip()}")
+                    return []
+    except IOError:
+        print("ERROR: File problem reading primary package list.")
+        return []
+
+    return output_list
+
+
 def process_command_line(argv: List[str]) -> argparse.Namespace:
     """
     Process command line invocation arguments and switches.
@@ -41,35 +89,6 @@ def process_command_line(argv: List[str]) -> argparse.Namespace:
         help="Maximize verbosity, especially for pip operations.",
     )
     return parser.parse_args(argv[1:])
-
-
-def parse_package_list(package_list_file: Path) -> List[Dict[str, Any]]:
-    output_list: List[Dict[str, Any]] = []
-    try:
-        with package_list_file.open("r") as package_list_fh:
-            for line in package_list_fh:
-                line_parsed = re.sub(r"#.+$", "", line)
-                if not re.search(r"\S", line_parsed):
-                    continue
-                line_list = line_parsed.strip().split()
-                if len(line_list) == 1:
-                    output_list.append({"spec": line_list[0]})
-                elif len(line_list) == 2:
-                    output_list.append(
-                        {
-                            "spec": line_list[0],
-                            "no-deps": line_list[1].lower() == "true",
-                        }
-                    )
-                else:
-                    print(
-                        f"ERROR: Unable to parse primary package list line:\n    {line.strip()}"
-                    )
-                    return []
-    except IOError:
-        print("ERROR: File problem reading primary package list.")
-        return []
-    return output_list
 
 
 def create_test_packages_list(
