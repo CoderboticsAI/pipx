@@ -185,12 +185,18 @@ def build_pip_args(
         result += ["--editable"]
 
     return result
+def get_venv_args(parsed_args: Dict[str, Any]) -> List[str]:
+    """Return the arguments to pass to the virtual environment creation command.
 
+    Args:
+        parsed_args: The parsed command line arguments.
 
-def get_venv_args(parsed_args: Dict[str, str]) -> List[str]:
-    venv_args: List[str] = []
-    if parsed_args.get("system_site_packages"):
-        venv_args += ["--system-site-packages"]
+    Returns:
+        A list of arguments to pass to the virtual environment creation command.
+
+    """
+    system_site_packages = parsed_args.get("system_site_packages")
+    venv_args = ["--system-site-packages"] if system_site_packages else []
     return venv_args
 
 
