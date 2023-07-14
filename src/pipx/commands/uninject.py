@@ -18,13 +18,31 @@ logger = logging.getLogger(__name__)
 def get_include_app_paths(
     package_name: str, venv: Venv, local_bin_dir: Path
 ) -> Set[Path]:
+    """
+    Get a set of app path directories to be removed for a package.
+
+    Args:
+        package_name: The name of the package.
+        venv: The virtual environment instance.
+        local_bin_dir: The local bin directory.
+
+    Returns:
+        A set of `Path` objects representing app path directories to be removed.
+
+    Examples:
+        >>> venv = Venv(path=Path('/path/to/venv'))
+        >>> local_bin_dir = Path('/path/to/local/bin')
+        >>> get_include_app_paths('package-name', venv, local_bin_dir)
+        {Path('/path/to/venv/bin/app1'), Path('/path/to/venv/bin/app2')}
+    """
+    package_metadata = venv.package_metadata[package_name]
     bin_dir_app_paths = _get_package_bin_dir_app_paths(
-        venv, venv.package_metadata[package_name], local_bin_dir
+        venv, package_metadata, local_bin_dir
     )
 
     need_to_remove = set()
     for bin_dir_app_path in bin_dir_app_paths:
-        if bin_dir_app_path.name in venv.package_metadata[package_name].apps:
+        if bin_dir_app_path.name in package_metadata.apps:
             need_to_remove.add(bin_dir_app_path)
 
     return need_to_remove
