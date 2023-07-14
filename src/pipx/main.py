@@ -392,6 +392,36 @@ def _add_uninstall(
     )
     p.add_argument("package").completer = venv_completer
     p.add_argument("--verbose", action="store_true")
+
+
+def _add_uninstall_all(subparsers: argparse.ArgumentParser) -> None:
+    """
+    Add the "uninstall-all" command to the command-line interface.
+
+    Args:
+        subparsers: The subparsers object used to add the "uninstall-all" command.
+
+    Returns:
+        None
+
+    Examples:
+        >>> _add_uninstall_all(subparsers)
+        # Add uninstall-all command to the command-line interface
+    """
+    p = subparsers.add_parser(
+        "uninstall-all",
+        help="Uninstall all packages",
+        description="Uninstall all pipx-managed packages",
+    )
+    p.add_argument("--verbose", action="store_true")
+
+
+def refactor_add_uninstall_all() -> None:
+    parser = argparse.ArgumentParser(description=PIPX_DESCRIPTION)
+    subparsers = parser.add_subparsers(dest="command")
+    _add_uninstall_all(subparsers)
+    args = parser.parse_args()
+    print(args)
 def add_pip_venv_args(parser: argparse.ArgumentParser) -> None:
     """
     Add arguments related to creating virtual environments using pip to the parser.
@@ -803,15 +833,6 @@ def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--include-deps", help="Include apps of dependent packages", action="store_true"
     )
-
-
-def _add_uninstall_all(subparsers: argparse._SubParsersAction) -> None:
-    p = subparsers.add_parser(
-        "uninstall-all",
-        help="Uninstall all packages",
-        description="Uninstall all pipx-managed packages",
-    )
-    p.add_argument("--verbose", action="store_true")
 
 
 def _add_reinstall(subparsers, venv_completer: VenvCompleter) -> None:
