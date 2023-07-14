@@ -331,6 +331,45 @@ def run_command(
         return commands.environment(value=kwargs["value"])
     else:
         raise PipxError(f"Unknown command {command}")
+def _add_upgrade_all(subparsers: argparse._SubParsersAction) -> None:
+    """
+    Add the "upgrade-all" command to the subparsers.
+
+    Args:
+        subparsers (argparse._SubParsersAction): The subparsers object.
+
+    Returns:
+        None
+    """
+
+    def upgrade_all_command(args):
+        commands.upgrade_all_packages(
+            include_injected=args.include_injected,
+            skip=args.skip,
+            force=args.force,
+            verbose=args.verbose,
+        )
+
+    p = subparsers.add_parser(
+        "upgrade-all",
+        help="Upgrade all packages. Runs `pip install -U <pkgname>` for each package.",
+        description="Upgrades all packages within their virtual environments by running 'pip install --upgrade PACKAGE'",
+    )
+    p.set_defaults(func=upgrade_all_command)
+
+    p.add_argument(
+        "--include-injected",
+        action="store_true",
+        help="Also upgrade packages injected into the main app's environment",
+    )
+    p.add_argument("--skip", nargs="+", default=[], help="skip these packages")
+    p.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Modify existing virtual environment and files in PIPX_BIN_DIR",
+    )
+    p.add_argument("--verbose", action="store_true")
 def add_pip_venv_args(parser: argparse.ArgumentParser) -> None:
     """
     Add arguments related to creating virtual environments using pip to the parser.
@@ -742,27 +781,6 @@ def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--include-deps", help="Include apps of dependent packages", action="store_true"
     )
-
-
-def _add_upgrade_all(subparsers: argparse._SubParsersAction) -> None:
-    p = subparsers.add_parser(
-        "upgrade-all",
-        help="Upgrade all packages. Runs `pip install -U <pkgname>` for each package.",
-        description="Upgrades all packages within their virtual environments by running 'pip install --upgrade PACKAGE'",
-    )
-    p.add_argument(
-        "--include-injected",
-        action="store_true",
-        help="Also upgrade packages injected into the main app's environment",
-    )
-    p.add_argument("--skip", nargs="+", default=[], help="skip these packages")
-    p.add_argument(
-        "--force",
-        "-f",
-        action="store_true",
-        help="Modify existing virtual environment and files in PIPX_BIN_DIR",
-    )
-    p.add_argument("--verbose", action="store_true")
 
 
 def _add_uninstall(subparsers, venv_completer: VenvCompleter) -> None:
