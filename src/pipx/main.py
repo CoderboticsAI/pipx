@@ -629,15 +629,21 @@ def _add_inject(
     add_pip_venv_args(p)
     add_force_argument(p)
     add_verbose_argument(p)
-
-
-def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--include-deps", help="Include apps of dependent packages", action="store_true"
-    )
-
-
 def _add_uninject(subparsers, venv_completer: VenvCompleter):
+    """Add the 'uninject' sub-command to the parser.
+
+    Args:
+        subparsers: The subparsers object from argparse.
+        venv_completer (VenvCompleter): The completer for the virtual environment names.
+
+    """
+
+    def _leave_deps_action(action: argparse._StoreTrueAction):  # type: ignore
+        """Action to handle the 'leave-deps' flag."""
+        if action.option_strings:
+            return f", {' '.join(action.option_strings)}"
+        return ""
+
     p = subparsers.add_parser(
         "uninject",
         help="Uninstall injected packages from an existing Virtual Environment",
@@ -654,10 +660,17 @@ def _add_uninject(subparsers, venv_completer: VenvCompleter):
     )
     p.add_argument(
         "--leave-deps",
+        dest="leave_deps",
         action="store_true",
         help="Only uninstall the main injected package but leave its dependencies installed.",
     )
-    p.add_argument("--verbose", action="store_true")
+    p.add_argument("--verbose", action="store_true", help="Display verbose output.")
+
+
+def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--include-deps", help="Include apps of dependent packages", action="store_true"
+    )
 
 
 def _add_upgrade(subparsers, venv_completer: VenvCompleter) -> None:
