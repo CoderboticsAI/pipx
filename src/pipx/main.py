@@ -575,43 +575,66 @@ def _add_install(subparsers: argparse._SubParsersAction) -> None:
         help="Create the virtual environment but don't install the package",
         dest="only_install_venv",
     )
+def _add_inject(
+    subparsers: argparse._SubParsersAction, venv_completer: VenvCompleter
+) -> None:
+    """
+    Add the 'inject' command to the subparsers.
+
+    Args:
+        subparsers: The subparsers object to add the command to.
+        venv_completer: A callable that provides autocompletion for the virtual environment name.
+    """
+
+    def add_package_argument(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "package",
+            help="Name of the existing pipx-managed Virtual Environment to inject into",
+        ).completer = venv_completer
+
+    def add_dependencies_argument(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "dependencies",
+            nargs="+",
+            help="The packages to inject into the Virtual Environment--either package name or pip package spec",
+        )
+
+    def add_include_apps_argument(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "--include-apps",
+            action="store_true",
+            help="Add apps from the injected packages onto your PATH",
+        )
+
+    def add_force_argument(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "--force",
+            "-f",
+            action="store_true",
+            help="Modify the existing virtual environment and files in PIPX_BIN_DIR",
+        )
+
+    def add_verbose_argument(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--verbose", action="store_true")
+
+    p = subparsers.add_parser(
+        "inject",
+        help="Install packages into an existing Virtual Environment",
+        description="Installs packages to an existing pipx-managed virtual environment.",
+    )
+    add_package_argument(p)
+    add_dependencies_argument(p)
+    add_include_apps_argument(p)
+    add_include_dependencies(p)
+    add_pip_venv_args(p)
+    add_force_argument(p)
+    add_verbose_argument(p)
 
 
 def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--include-deps", help="Include apps of dependent packages", action="store_true"
     )
-
-
-def _add_inject(subparsers, venv_completer: VenvCompleter) -> None:
-    p = subparsers.add_parser(
-        "inject",
-        help="Install packages into an existing Virtual Environment",
-        description="Installs packages to an existing pipx-managed virtual environment.",
-    )
-    p.add_argument(
-        "package",
-        help="Name of the existing pipx-managed Virtual Environment to inject into",
-    ).completer = venv_completer
-    p.add_argument(
-        "dependencies",
-        nargs="+",
-        help="the packages to inject into the Virtual Environment--either package name or pip package spec",
-    )
-    p.add_argument(
-        "--include-apps",
-        action="store_true",
-        help="Add apps from the injected packages onto your PATH",
-    )
-    add_include_dependencies(p)
-    add_pip_venv_args(p)
-    p.add_argument(
-        "--force",
-        "-f",
-        action="store_true",
-        help="Modify existing virtual environment and files in PIPX_BIN_DIR",
-    )
-    p.add_argument("--verbose", action="store_true")
 
 
 def _add_uninject(subparsers, venv_completer: VenvCompleter):
