@@ -142,21 +142,49 @@ class InstalledVenvsCompleter:
             for x in self.packages
             if x.startswith(canonicalize_name(prefix))
         ]
-
-
 def get_pip_args(parsed_args: Dict[str, str]) -> List[str]:
-    pip_args: List[str] = []
-    if parsed_args.get("index_url"):
-        pip_args += ["--index-url", parsed_args["index_url"]]
+    """Returns the arguments to be passed to pip based on the parsed command line arguments.
 
-    if parsed_args.get("pip_args"):
-        pip_args += shlex.split(parsed_args.get("pip_args", ""), posix=not WINDOWS)
+    Args:
+        parsed_args: A dictionary containing the parsed command line arguments.
 
-    # make sure --editable is last because it needs to be right before
-    #   package specification
-    if parsed_args.get("editable"):
-        pip_args += ["--editable"]
-    return pip_args
+    Returns:
+        A list of strings representing the arguments to be passed to pip.
+
+    """
+
+    index_url = parsed_args.get("index_url")
+    pip_args = shlex.split(parsed_args.get("pip_args", ""), posix=not WINDOWS)
+    editable = parsed_args.get("editable")
+
+    return build_pip_args(index_url, pip_args, editable)
+
+
+def build_pip_args(
+    index_url: Optional[str], pip_args: List[str], editable: Optional[bool]
+) -> List[str]:
+    """Builds the arguments to be passed to pip.
+
+    Args:
+        index_url: The index URL for pip, if provided.
+        pip_args: The pip arguments parsed from the command line.
+        editable: A flag specifying whether the package should be installed in editable mode.
+
+    Returns:
+        A list of strings representing the arguments to be passed to pip.
+
+    """
+    result = []
+
+    if index_url:
+        result += ["--index-url", index_url]
+
+    result += pip_args
+
+    if editable:
+        result += ["--editable"]
+
+    return result
 
 
 def get_venv_args(parsed_args: Dict[str, str]) -> List[str]:
