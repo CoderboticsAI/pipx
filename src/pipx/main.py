@@ -29,6 +29,13 @@ from pipx.interpreter import DEFAULT_PYTHON, find_py_launcher_python
 from pipx.util import PipxError, mkdir, pipx_wrap, rmdir
 from pipx.venv import VenvContainer
 from pipx.version import __version__
+from typing import Callable, List
+
+import argcomplete
+from pipx import constants
+from pipx.animate import show_cursor
+from pipx.constants import ExitCode
+from pipx.util import PipxError
 
 logger = logging.getLogger(__name__)
 
@@ -667,32 +674,74 @@ def _add_uninject(subparsers, venv_completer: VenvCompleter):
     p.add_argument("--verbose", action="store_true", help="Display verbose output.")
 
 
-def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--include-deps", help="Include apps of dependent packages", action="store_true"
-    )
-
-
 def _add_upgrade(subparsers, venv_completer: VenvCompleter) -> None:
+    """Add the 'upgrade' command to the parser.
+
+    Args:
+        subparsers: A subparsers object from ArgumentParser.
+        venv_completer: A callable that takes a string and returns a list of strings.
+
+    Returns:
+        None
+    """
     p = subparsers.add_parser(
         "upgrade",
         help="Upgrade a package",
-        description="Upgrade a package in a pipx-managed Virtual Environment by running 'pip install --upgrade PACKAGE'",
+        description=(
+            "Upgrade a package in a pipx-managed Virtual Environment "
+            "by running 'pip install --upgrade PACKAGE'"
+        ),
     )
     p.add_argument("package").completer = venv_completer
+
     p.add_argument(
         "--include-injected",
         action="store_true",
         help="Also upgrade packages injected into the main app's environment",
     )
+
     p.add_argument(
         "--force",
         "-f",
         action="store_true",
         help="Modify existing virtual environment and files in PIPX_BIN_DIR",
     )
-    add_pip_venv_args(p)
+
+    _add_pip_venv_args(p)
+
     p.add_argument("--verbose", action="store_true")
+
+
+def _add_pip_venv_args(p: argparse.ArgumentParser) -> None:
+    """Add arguments for specifying a specific virtual environment or python executable to pipx commands.
+
+    Args:
+        p: The ArgumentParser object.
+
+    Returns:
+        None
+    """
+    venv_group = p.add_mutually_exclusive_group()
+    venv_group.add_argument(
+        "--python",
+        help=(
+            "Specify a specific python version. Uses "
+            "WARFPAN_PATH as defined as env variable."
+        ),
+    )
+    venv_group.add_argument(
+        "--venv",
+        "-v",
+        help=(
+            "Provide a path to a specific virtual environment." " Useful for debugging."
+        ),
+    )
+
+
+def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--include-deps", help="Include apps of dependent packages", action="store_true"
+    )
 
 
 def _add_upgrade_all(subparsers: argparse._SubParsersAction) -> None:
