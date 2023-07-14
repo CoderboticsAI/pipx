@@ -26,6 +26,98 @@ def is_pip_user_installed(script_path: Path, userbase_path: Path) -> bool:
         return False
 
 
+def ensure_pipx_paths(force: bool) -> ExitCode:
+    """
+    Ensure that pipx paths are added to the user's PATH.
+
+    Args:
+        force (bool): If True, the paths will be added to PATH even if they are already present.
+
+    Returns:
+        ExitCode: The exit code indicating the success of the operation.
+
+    Raises:
+        None
+
+    Examples:
+        >>> ensure_pipx_paths(force=True)
+        0
+
+        >>> ensure_pipx_paths(force=False)
+        0
+    """
+
+    def is_pip_user_installed(script_path: Path, userbase_path: Path) -> bool:
+        return script_path != userbase_path
+
+    def _add_location_to_path(location_str):
+        userpath.append(location_str)
+        return True, userpath.need_shell_restart(location_str)
+
+    def _print_shell_restart_message(location_str):
+        print(
+            f"Restart your shell for PATH changes to take effect (e.g. open a new terminal window)."
+        )
+
+    def _print_already_in_path_message(location_str):
+        print(f"{location_str} is already in PATH.")
+
+    bin_paths = {constants.LOCAL_BIN_DIR}
+
+    pipx_user_bin_path = get_pipx_user_bin_path()
+    if pipx_user_bin_path is not None:
+        bin_paths.add(pipx_user_bin_path)
+
+    path_added = False
+    need_shell_restart = False
+    for bin_path in bin_paths:
+        (path_added_current, need_shell_restart_current) = ensure_path(
+            bin_path, force=force
+        )
+        path_added |= path_added_current
+        need_shell_restart |= need_shell_restart_current
+
+    print()
+
+    if path_added:
+        print(
+            pipx_wrap(
+                """
+                Consider adding shell completions for pipx. Run 'pipx
+                completions' for instructions.
+                """
+            )
+            + "\n"
+        )
+    elif not need_shell_restart:
+        sys.stdout.flush()
+        logger.warning(
+            pipx_wrap(
+                f"""
+                {hazard}  All pipx binary directories have been added to PATH. If you
+                are sure you want to proceed, try again with the '--force'
+                flag.
+                """
+            )
+            + "\n"
+        )
+
+    if need_shell_restart:
+        print(
+            pipx_wrap(
+                """
+                You will need to open a new terminal or re-login for the PATH
+                changes to take effect.
+                """
+            )
+            + "\n"
+        )
+
+    print(f"Otherwise pipx is ready to go! {stars}")
+
+    return EXIT_CODE_OK
+
+
 def ensure_path(location: Path, *, force: bool) -> Tuple[bool, bool]:
     """
     Ensure that the provided location is in the user's PATH or add it to PATH.
@@ -115,61 +207,3 @@ def get_pipx_user_bin_path() -> Optional[Path]:
                 break
 
     return user_bin_path
-
-
-def ensure_pipx_paths(force: bool) -> ExitCode:
-    """Returns pipx exit code."""
-    bin_paths = {constants.LOCAL_BIN_DIR}
-
-    pipx_user_bin_path = get_pipx_user_bin_path()
-    if pipx_user_bin_path is not None:
-        bin_paths.add(pipx_user_bin_path)
-
-    path_added = False
-    need_shell_restart = False
-    for bin_path in bin_paths:
-        (path_added_current, need_shell_restart_current) = ensure_path(
-            bin_path, force=force
-        )
-        path_added |= path_added_current
-        need_shell_restart |= need_shell_restart_current
-
-    print()
-
-    if path_added:
-        print(
-            pipx_wrap(
-                """
-                Consider adding shell completions for pipx. Run 'pipx
-                completions' for instructions.
-                """
-            )
-            + "\n"
-        )
-    elif not need_shell_restart:
-        sys.stdout.flush()
-        logger.warning(
-            pipx_wrap(
-                f"""
-                {hazard}  All pipx binary directories have been added to PATH. If you
-                are sure you want to proceed, try again with the '--force'
-                flag.
-                """
-            )
-            + "\n"
-        )
-
-    if need_shell_restart:
-        print(
-            pipx_wrap(
-                """
-                You will need to open a new terminal or re-login for the PATH
-                changes to take effect.
-                """
-            )
-            + "\n"
-        )
-
-    print(f"Otherwise pipx is ready to go! {stars}")
-
-    return EXIT_CODE_OK
