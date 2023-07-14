@@ -9,48 +9,38 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from test_packages_support import get_platform_list_path
+import argparse
+from typing import List
 
 
 def process_command_line(argv: List[str]) -> argparse.Namespace:
-    """Process command line invocation arguments and switches.
+    """
+    Process command line invocation arguments and switches.
 
     Args:
-        argv: list of arguments, or `None` from ``sys.argv[1:]``.
+        argv (List[str]): list of arguments, or `None` from `sys.argv[1:]`.
 
     Returns:
         argparse.Namespace: named attributes of arguments and switches
     """
-    # script_name = argv[0]
-    argv = argv[1:]
-
-    # initialize the parser object:
     parser = argparse.ArgumentParser(
-        description="Create list of needed test packages for pipx tests and local pypiserver."
+        description="Create a list of needed test packages for pipx tests and local pypiserver."
     )
-
-    # specifying nargs= puts outputs of parser in list (even if nargs=1)
-
-    # required arguments
     parser.add_argument(
         "primary_package_list",
-        help="Main packages to examine, getting list of "
+        help="Main packages to examine, getting a list of "
         "matching distribution files and dependencies.",
     )
     parser.add_argument(
         "package_list_dir", help="Directory to output package distribution lists."
     )
-
-    # switches/options:
     parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="Maximum verbosity, especially for pip operations.",
+        help="Maximize verbosity, especially for pip operations.",
     )
-
-    args = parser.parse_args(argv)
-
-    return args
+    return parser.parse_args(argv[1:])
 
 
 def parse_package_list(package_list_file: Path) -> List[Dict[str, Any]]:
