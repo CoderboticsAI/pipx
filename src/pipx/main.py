@@ -414,6 +414,45 @@ def _add_uninstall_all(subparsers: argparse.ArgumentParser) -> None:
         description="Uninstall all pipx-managed packages",
     )
     p.add_argument("--verbose", action="store_true")
+def _add_reinstall(
+    subparsers: argparse._SubParsersAction, venv_completer: VenvCompleter
+) -> None:
+    """
+    Add the 'reinstall' command to the subparsers.
+
+    Args:
+        subparsers: An instance of argparse._SubParsersAction representing the subparsers for the parent parser.
+        venv_completer: A VenvCompleter function that completes the virtual environment names.
+
+    Returns:
+        None
+    """
+
+    p = subparsers.add_parser(
+        "reinstall",
+        formatter_class=LineWrapRawTextHelpFormatter,
+        help="Reinstall a package",
+        description=textwrap.dedent(
+            """
+            Reinstalls a package.
+
+            Package is uninstalled, then installed with pipx install PACKAGE
+            with the same options used in the original install of PACKAGE.
+
+            """
+        ),
+    )
+    p.add_argument("package").completer = venv_completer
+    p.add_argument(
+        "--python",
+        default=DEFAULT_PYTHON,
+        help=(
+            "Python to reinstall with. Possible values can be the executable name (python3.11), "
+            "the version to pass to py launcher (3.11), or the full path to the executable."
+            f"Requires Python {MINIMUM_PYTHON_VERSION} or above."
+        ),
+    )
+    p.add_argument("--verbose", action="store_true")
 
 
 def refactor_add_uninstall_all() -> None:
@@ -833,34 +872,6 @@ def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--include-deps", help="Include apps of dependent packages", action="store_true"
     )
-
-
-def _add_reinstall(subparsers, venv_completer: VenvCompleter) -> None:
-    p = subparsers.add_parser(
-        "reinstall",
-        formatter_class=LineWrapRawTextHelpFormatter,
-        help="Reinstall a package",
-        description=textwrap.dedent(
-            """
-            Reinstalls a package.
-
-            Package is uninstalled, then installed with pipx install PACKAGE
-            with the same options used in the original install of PACKAGE.
-
-            """
-        ),
-    )
-    p.add_argument("package").completer = venv_completer
-    p.add_argument(
-        "--python",
-        default=DEFAULT_PYTHON,
-        help=(
-            "Python to reinstall with. Possible values can be the executable name (python3.11), "
-            "the version to pass to py launcher (3.11), or the full path to the executable."
-            f"Requires Python {MINIMUM_PYTHON_VERSION} or above."
-        ),
-    )
-    p.add_argument("--verbose", action="store_true")
 
 
 def _add_reinstall_all(subparsers: argparse._SubParsersAction) -> None:
