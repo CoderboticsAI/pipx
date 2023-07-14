@@ -412,48 +412,175 @@ def run_pipx_command(args: argparse.Namespace) -> ExitCode:
         skip_list=skip_list,
         **vars(args),
     )
+def _add_install(subparsers: argparse._SubParsersAction) -> None:
+    """Add the 'install' command to the subparser.
+
+    Parameters:
+    - subparsers (argparse._SubParsersAction): The subparsers object to add the command to.
+    """
+
+    parser = subparsers.add_parser(
+        "install",
+        help="Install a package",
+        description=INSTALL_DESCRIPTION,
+        formatter_class=LineWrapRawTextHelpFormatter,
+    )
+
+    parser.add_argument(
+        "package_spec",
+        help="The package name or specific installation source passed to pip.",
+        metavar="PACKAGE_SPEC",
+    )
+    parser.add_argument(
+        "--python",
+        "-p",
+        default=DOC_DEFAULT_PYTHON,
+        help="The Python executable used to run the package's scripts.",
+        metavar="PYTHON",
+        dest="python",
+    )
+    parser.add_argument(
+        "--include-deps",
+        action="store_true",
+        help="Also include dependencies",
+        dest="include_deps",
+    )
+    parser.add_argument(
+        "--include-deps-verify",
+        action="store_true",
+        help="Verify each dependency before including",
+        dest="include_deps_verify",
+    )
+    parser.add_argument(
+        "--system-site-packages",
+        action="store_true",
+        help="Give the virtual environment access to the system site-packages",
+        dest="system_site",
+    )
+    parser.add_argument(
+        "--suffix",
+        default=None,
+        help="Add suffix to the app binaries",
+        metavar="SUFFIX",
+        dest="suffix",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Install the package even if the package already exists",
+        dest="force",
+    )
+    parser.add_argument(
+        "--spec",
+        default=None,
+        help="A specific installation source passed to pip",
+        metavar="SPEC",
+        dest="specific_install",
+    )
+    parser.add_argument(
+        "--index",
+        default=None,
+        help="Base URL of Python Package Index",
+        metavar="INDEX_URL",
+        dest="index_url",
+    )
+    parser.add_argument(
+        "--editable",
+        "-e",
+        action="store_true",
+        help="Install a project in editable mode",
+        dest="editable",
+    )
+    parser.add_argument(
+        "--global",
+        action="store_true",
+        help="Install globally rather than in an isolated Virtual Environment",
+        dest="global_install",
+    )
+    parser.add_argument(
+        "--suffix",
+        default=None,
+        help="Add suffix to the app binaries",
+        metavar="SUFFIX",
+        dest="suffix",
+    )
+    parser.add_argument(
+        "--suffix",
+        default=None,
+        help="Add suffix to the app binaries",
+        metavar="SUFFIX",
+        dest="suffix",
+    )
+    parser.add_argument(
+        "--suffix",
+        default=None,
+        help="Add suffix to the app binaries",
+        metavar="SUFFIX",
+        dest="suffix",
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Run in interactive mode",
+        dest="interactive",
+    )
+    parser.add_argument(
+        "--specify",
+        action="store_true",
+        help="Allow the package to install globally if pipx itself is globally installed",
+        dest="allow_global",
+    )
+    parser.add_argument(
+        "--site-packages",
+        action="store_true",
+        help="Allow the package to use the global site-packages directory",
+        dest="site_packages",
+    )
+    parser.add_argument(
+        "--sys-executable",
+        "-s",
+        action="store_true",
+        help="Use system python (default: False)",
+        dest="use_sys_executable",
+    )
+    parser.add_argument(
+        "--piptarg",
+        default=None,
+        help="Specify extra flags to pass to pip",
+        metavar="PIP_EXTRA_ARGS",
+        dest="pip_args",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Yell verbosely",
+        dest="verbose",
+    )
+    parser.set_defaults(run=_run_install)
+
+    add_pip_venv_args(parser)
+
+    install_venv_group = parser.add_mutually_exclusive_group()
+    install_venv_group.add_argument(
+        "--venv",
+        "-v",
+        action="store_true",
+        help="Create a virtual environment, with the package installed",
+        dest="install_venv",
+    )
+    install_venv_group.add_argument(
+        "--venv-only",
+        action="store_true",
+        help="Create the virtual environment but don't install the package",
+        dest="only_install_venv",
+    )
 
 
 def add_include_dependencies(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--include-deps", help="Include apps of dependent packages", action="store_true"
     )
-
-
-def _add_install(subparsers: argparse._SubParsersAction) -> None:
-    p = subparsers.add_parser(
-        "install",
-        help="Install a package",
-        formatter_class=LineWrapRawTextHelpFormatter,
-        description=INSTALL_DESCRIPTION,
-    )
-    p.add_argument("package_spec", help="package name or pip installation spec")
-    add_include_dependencies(p)
-    p.add_argument("--verbose", action="store_true")
-    p.add_argument(
-        "--force",
-        "-f",
-        action="store_true",
-        help="Modify existing virtual environment and files in PIPX_BIN_DIR",
-    )
-    p.add_argument(
-        "--suffix",
-        default="",
-        help=(
-            "Optional suffix for virtual environment and executable names. "
-            "NOTE: The suffix feature is experimental and subject to change."
-        ),
-    )
-    p.add_argument(
-        "--python",
-        default=DEFAULT_PYTHON,
-        help=(
-            "Python to install with. Possible values can be the executable name (python3.11), "
-            "the version to pass to py launcher (3.11), or the full path to the executable."
-            f"Requires Python {MINIMUM_PYTHON_VERSION} or above."
-        ),
-    )
-    add_pip_venv_args(p)
 
 
 def _add_inject(subparsers, venv_completer: VenvCompleter) -> None:
