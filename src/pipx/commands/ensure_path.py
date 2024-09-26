@@ -11,86 +11,57 @@ from pipx.constants import EXIT_CODE_OK, ExitCode
 from pipx.emojis import hazard, stars
 from pipx.util import pipx_wrap
 
+import userpath
+from typing import Tuple
+
 logger = logging.getLogger(__name__)
 
 
-def get_pipx_user_bin_path() -> Optional[Path]:
-    """Returns None if pipx is not installed using `pip --user`
-    Otherwise returns parent dir of pipx binary
-    """
-    # NOTE: using this method to detect pip user-installed pipx will return
-    #   None if pipx was installed as editable using `pip install --user -e`
-
-    # https://docs.python.org/3/install/index.html#inst-alt-install-user
-    #   Linux + Mac:
-    #       scripts in <userbase>/bin
-    #   Windows:
-    #       scripts in <userbase>/Python<XY>/Scripts
-    #       modules in <userbase>/Python<XY>/site-packages
-
-    pipx_bin_path = None
-
-    script_path = Path(__file__).resolve()
-    userbase_path = Path(site.getuserbase()).resolve()
+def is_pip_user_installed(script_path: Path, userbase_path: Path) -> bool:
+    """Check if pipx is installed using `pip --user`."""
     try:
-        _ = script_path.relative_to(userbase_path)
+        relative_path = script_path.relative_to(userbase_path)
+        return True
     except ValueError:
-        pip_user_installed = False
-    else:
-        pip_user_installed = True
-    if pip_user_installed:
-        test_paths = (
-            userbase_path / "bin" / "pipx",
-            Path(site.getusersitepackages()).resolve().parent / "Scripts" / "pipx.exe",
-        )
-        for test_path in test_paths:
-            if test_path.exists():
-                pipx_bin_path = test_path.parent
-                break
-
-    return pipx_bin_path
-
-
-def ensure_path(location: Path, *, force: bool) -> Tuple[bool, bool]:
-    """Ensure location is in user's PATH or add it to PATH.
-    Returns True if location was added to PATH
-    """
-    location_str = str(location)
-    path_added = False
-    need_shell_restart = userpath.need_shell_restart(location_str)
-    in_current_path = userpath.in_current_path(location_str)
-
-    if force or (not in_current_path and not need_shell_restart):
-        userpath.append(location_str, "pipx")
-        print(
-            pipx_wrap(
-                f"Success! Added {location_str} to the PATH environment variable.",
-                subsequent_indent=" " * 4,
-            )
-        )
-        path_added = True
-        need_shell_restart = userpath.need_shell_restart(location_str)
-    elif not in_current_path and need_shell_restart:
-        print(
-            pipx_wrap(
-                f"""
-                {location_str} has been been added to PATH, but you need to
-                open a new terminal or re-login for this PATH change to take
-                effect.
-                """,
-                subsequent_indent=" " * 4,
-            )
-        )
-    else:
-        print(
-            pipx_wrap(f"{location_str} is already in PATH.", subsequent_indent=" " * 4)
-        )
-
-    return (path_added, need_shell_restart)
+        return False
 
 
 def ensure_pipx_paths(force: bool) -> ExitCode:
-    """Returns pipx exit code."""
+    """
+    Ensure that pipx paths are added to the user's PATH.
+
+    Args:
+        force (bool): If True, the paths will be added to PATH even if they are already present.
+
+    Returns:
+        ExitCode: The exit code indicating the success of the operation.
+
+    Raises:
+        None
+
+    Examples:
+        >>> ensure_pipx_paths(force=True)
+        0
+
+        >>> ensure_pipx_paths(force=False)
+        0
+    """
+
+    def is_pip_user_installed(script_path: Path, userbase_path: Path) -> bool:
+        return script_path != userbase_path
+
+    def _add_location_to_path(location_str):
+        userpath.append(location_str)
+        return True, userpath.need_shell_restart(location_str)
+
+    def _print_shell_restart_message(location_str):
+        print(
+            f"Restart your shell for PATH changes to take effect (e.g. open a new terminal window)."
+        )
+
+    def _print_already_in_path_message(location_str):
+        print(f"{location_str} is already in PATH.")
+
     bin_paths = {constants.LOCAL_BIN_DIR}
 
     pipx_user_bin_path = get_pipx_user_bin_path()
@@ -145,3 +116,94 @@ def ensure_pipx_paths(force: bool) -> ExitCode:
     print(f"Otherwise pipx is ready to go! {stars}")
 
     return EXIT_CODE_OK
+
+
+def ensure_path(location: Path, *, force: bool) -> Tuple[bool, bool]:
+    """
+    Ensure that the provided location is in the user's PATH or add it to PATH.
+
+    Args:
+        location (Path): The location to be added to the PATH.
+        force (bool): If True, the location will be added to PATH even if it is already present.
+
+    Returns:
+        Tuple[bool, bool]: A tuple indicating whether the location was added to the PATH and whether a shell restart is required.
+    """
+    location_str = str(location)
+    path_added = False
+    need_shell_restart = userpath.need_shell_restart(location_str)
+    in_current_path = userpath.in_current_path(location_str)
+
+    if force or (not in_current_path and not need_shell_restart):
+        path_added, need_shell_restart = _add_location_to_path(location_str)
+    elif not in_current_path and need_shell_restart:
+        _print_shell_restart_message(location_str)
+    else:
+        _print_already_in_path_message(location_str)
+
+    return path_added, need_shell_restart
+
+
+def _add_location_to_path(location_str: str) -> Tuple[bool, bool]:
+    userpath.append(location_str, "pipx")
+    print(
+        pipx_wrap(
+            f"Success! Added {location_str} to the PATH environment variable.",
+            subsequent_indent=" " * 4,
+        )
+    )
+    path_added = True
+    need_shell_restart = userpath.need_shell_restart(location_str)
+    return path_added, need_shell_restart
+
+
+def _print_shell_restart_message(location_str: str) -> None:
+    print(
+        pipx_wrap(
+            f"""
+            {location_str} has been been added to PATH, but you need to
+            open a new terminal or re-login for this PATH change to take
+            effect.
+            """,
+            subsequent_indent=" " * 4,
+        )
+    )
+
+
+def _print_already_in_path_message(location_str: str) -> None:
+    print(pipx_wrap(f"{location_str} is already in PATH.", subsequent_indent=" " * 4))
+
+
+def get_pipx_user_bin_path() -> Optional[Path]:
+    """
+    Returns the parent directory of the pipx binary if pipx is installed using `pip --user`.
+
+    Returns:
+        Optional[Path]: The parent directory path of the pipx binary, or None if pipx is not installed using `pip --user`.
+
+    Raises:
+        None
+
+    Examples:
+        >>> get_pipx_user_bin_path()
+        Path('/path/to/pipx')
+
+        >>> get_pipx_user_bin_path()
+        None
+    """
+    user_bin_path = None
+
+    script_path = Path(__file__).resolve()
+    userbase_path = Path(site.getuserbase()).resolve()
+
+    if is_pip_user_installed(script_path, userbase_path):
+        test_paths = (
+            userbase_path / "bin" / "pipx",
+            Path(site.getusersitepackages()).resolve().parent / "Scripts" / "pipx.exe",
+        )
+        for test_path in test_paths:
+            if test_path.exists():
+                user_bin_path = test_path.parent
+                break
+
+    return user_bin_path
